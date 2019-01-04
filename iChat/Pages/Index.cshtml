@@ -1,0 +1,108 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "ichat";
+}
+<input type="hidden" id="name"/>
+<div style="padding-top:20px">
+    <div class="col-md-3" style="background:#e4e6e7;height:450px;overflow-y:scroll;padding-top:10px">
+        <div id="chartMembers">
+
+        </div>
+    </div>
+    <div class="col-md-9">
+        <div class="row" style="height:400px; overflow-y:scroll">
+            <div class="col-sm-10 fill" id="chatRoom">
+                
+            </div>
+        </div>
+        <div class="row">
+            <form class="form-inline" style="padding:10px" id="dataEntry">
+                <input type="text" class="form-control form-control-static" placeholder="Type a Message" style="width:90%;border-radius: 50px;" id="chatMessage"/>
+                <button type="button" class="form-control" id="sendBtn" style="border-radius: 50px;"><i class="glyphicon glyphicon-send" style="transform: rotate(60deg);" ></i></button>
+            </form>
+        </div>
+    </div>
+</div>
+@section Scripts
+{
+  <script src="~/lib/signalr/signalr.js"></script>
+  <script type="text/javascript">
+      (function ()
+      {
+          var theHub;
+          const chatRoom = document.getElementById("chatRoom");
+          const chartMembers = document.getElementById("chartMembers");
+          onLoad();
+          function onLoad()
+          {
+              document.getElementById("name").value = "USER_" + Math.random() * 1000;
+              theHub = new signalR.HubConnectionBuilder()
+                       .withUrl("/ichat_url")
+                       .build();
+
+              theHub.on("onMessageReceived", onMessageReceived);
+              theHub.on("OnManageChatter", OnManageChatter);
+              theHub.on("OnConnected", CurrentChatters);
+              theHub.start();
+
+              document.getElementById("sendBtn").addEventListener("click", event => {
+                  event.preventDefault();
+                  sendMessageEvent();
+              });
+              document.getElementById("chatMessage").addEventListener("keypress", event => {
+                  if (event.which == 13) {
+                      sendMessageEvent();
+                      event.preventDefault();
+                  }
+              });
+          }
+          function CurrentChatters(chatters) {
+              for (var i = 0; i < chatters.length; i++) {
+                  var newChatter = document.createElement("p");
+                  newChatter.id = `@@${chatters[i]}`;
+                  newChatter.textContent = chatters[i];
+                  chartMembers.appendChild(newChatter);
+              }
+          }
+          function OnManageChatter(name, action) {
+              if (action) {
+                  var newChatter = document.createElement("p");
+                  newChatter.id = `@@${name}`;
+                  newChatter.textContent = name;
+                  newChatter.style="padding:10px;"
+                  chartMembers.appendChild(newChatter);
+              } else {
+                  document.getElementById(`@@${name}`).remove();
+              }
+          }
+          function sendMessageEvent()
+          {
+              var name = document.getElementById("name").value;
+              var message = document.getElementById("chatMessage").value;
+              if ($.trim(message) != '' && message != undefined) {
+                  SendMessage(name, message);
+              } else {
+                  document.getElementById("chatMessage").value = '';
+              }
+          }
+          function SendMessage(name, message)
+          {
+              let date_now = new Date().toLocaleString();
+              var sentMsg = document.createElement("div");
+              sentMsg.className = "col-md-12 row";
+              sentMsg.innerHTML = `<p style='text-align:right;padding:10px;background:#d3f8d0;width: max-content;float: right;border-top-left-radius: 15px; border-top-right-radius: 15px; border-bottom-left-radius: 15px;'> ${message}<br/><em style='font-size:11px;'>${date_now}</em></p>`;
+              chatRoom.append(sentMsg);
+              document.getElementById("chatMessage").value = '';
+              theHub.invoke("SendMessage", name, message);
+          }
+          function onMessageReceived(name, message) {
+              let date_now = new Date().toLocaleString();
+              var msg = document.createElement("div");
+              msg.className = "col-md-12 row";
+              msg.innerHTML = `<span style='font-size:11px;'><em>${name}, ${date_now}</em></span><p style='padding:10px;background:#e5efef;width: max-content;border-bottom-right-radius: 15px; border-top-right-radius: 15px; border-bottom-left-radius: 15px;'> ${message}</p>`;
+              chatRoom.append(msg);
+          }
+      })();
+    </script>
+}
